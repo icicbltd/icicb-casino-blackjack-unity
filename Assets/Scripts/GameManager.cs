@@ -13,518 +13,484 @@ using System.Linq;
 using UnityEngine.SceneManagement;
 using SimpleJSON;
 
-
 public class GameManager : MonoBehaviour
 {
     [DllImport("__Internal")]
     private static extern void GameController(string msg);
 
-    public Text Balance;
-    public Text Player1;
-    public Text Player1_1;
-    public Text Player2;
-    public Text normal;
-    public Text split;
-    public Sprite[] CardTexture = new Sprite[52];
-    public InputField InvestedMoney;
-    public Button Plusbutton;
-    public Button Minusebutton;
-    public Button Hitbutton;
-    public Button Standbutton;
-    public Button Startbutton;
-    public Button Splitbutton;
-    public Button Doublebutton;
+    public Transform[] myprefab = new Transform[52];
+    public InputField bet;
+    public Text balance;
+    public Text p_State;
+    public Text S_State;
+    public Text D_State;
     public static APIForm apiform;
-    public static HitAndStandForm H_S_state;
     public static Globalinitial _global;
-    public Transform prefab;
-    public Transform prefabTwo;
-    public GameObject Anim;
-    public Sprite a_Server;
-    public Sprite a_Bet;
-    public Sprite a_Response;
+    public Button DealButton;
+    public Button HitButton;
+    public Button StandButton;
+    public Button SplitButton;
+    public GameObject InsuranceButton;
+    public Button DoubleButton;
 
-    private bool normalBool = false;
-    private bool splitBool = false;
-    private string[] MyCardsName = new string[52];
-    private string Token ="";
-    private int H_imagecount = 0;
-    private int C_imagecount = 0;
-    private int S_imagecount = 0;
-    private int playeronePoint = 0;
-    private int playeronePoint_1 = 0;
-    private int playertwoPoint = 0;
+    public Sprite a_response;
+    public Sprite a_server;
+    public Sprite a_bet;
+    public GameObject Error;
+
+    private Transform Card;
+    private Vector3 f_vector = new Vector3(0.523f, 1.057f, 0.2007f);
+    private Vector3 e_vector;
+    private Vector3 f_rotation = new Vector3(0,-43,-126);
+    private Vector3 e_rotation = new Vector3(0,0,0);
+
+    private bool insuranceBool = false;
+    private bool p_moneyCheck = true;
+    private bool s_moneyCheck = true;
+    private string Token = "";
+    private int dealerCount =0;
+    private int playerCount =0;
+    private int splitCount =0;
+    private float myBet =100;
     private float myBal;
-    private float myBet;
-    private Sprite First;
-    private Transform CardChild;
-    // Start is called before the first frame update
+    private float time = 0;
+    private float endTime = 0.3f;
+
     void Start()
     {
-        myBal = 10000;
 #if UNITY_WEBGL == true && UNITY_EDITOR == false
         GameController("Ready");
 #endif
-        for (int i = 0; i < 52; i++)
-        {
-            MyCardsName[i] = CardTexture[i].name;
-        }
     }
 
-    // Update is called once per frame
     void Update()
     {
 
     }
 
-    public void GameStart()
+    public void plusButton()
     {
-        if (myBal >= Single.Parse(InvestedMoney.GetComponent<InputField>().text))
+        if (myBet + 100 > myBal)
         {
-            normalBool = false;
-            splitBool = false;
-            playeronePoint = 0;
-            playertwoPoint = 0;
-            playeronePoint_1 = 0;
-            Player1.text = "0";
-            Player1_1.text = "0";
-            Player2.text = "0";
-            H_imagecount = 0;
-            C_imagecount = 0;
-            defalt();
-            CardDestroy();
-            StartCoroutine(newStart());
-        }
-    }
-    private void defalt()
-    {
-        Startbutton.interactable = false;
-        Hitbutton.interactable = false;
-        Standbutton.interactable = false;
-        Plusbutton.interactable = false;
-        Splitbutton.interactable = false;
-        Doublebutton.interactable = false;
-        Minusebutton.interactable = false;
-        InvestedMoney.interactable = false;
-    }
-
-    public void HitPush()
-    {
-        StartCoroutine(Hit());
-    }
-
-    public void StandPush()
-    {
-        StartCoroutine(Stand());
-    }
-
-    public void DoublePush()
-    {
-        StartCoroutine(Double());
-    }
-
-    public void SplitPush()
-    {
-        StartCoroutine(Split());
-    }
-    public void InvestPlus()
-    {
-        if(Single.Parse(InvestedMoney.GetComponent<InputField>().text) + 100f > Single.Parse(Balance.GetComponent<Text>().text))
-        {
-            InvestedMoney.GetComponent<InputField>().text = Balance.GetComponent<Text>().text;
-            Plusbutton.interactable = false;
-            Minusebutton.interactable = true;
+            myBet = myBal;
         }
         else
         {
-            InvestedMoney.GetComponent<InputField>().text = (Single.Parse(InvestedMoney.GetComponent<InputField>().text) + 100f).ToString();
-            Minusebutton.interactable = true;
+            myBet +=100;
         }
+        bet.text = myBet.ToString();
     }
-    public void InvestMinuse()
+    public void minuseButton()
     {
-        if (Single.Parse(InvestedMoney.GetComponent<InputField>().text) > 100)
+        if (myBet < 110)
         {
-            InvestedMoney.GetComponent<InputField>().text = (Single.Parse(InvestedMoney.GetComponent<InputField>().text) - 100f).ToString();
-            Plusbutton.interactable = true;
-        }
-        if (Single.Parse(InvestedMoney.GetComponent<InputField>().text) < 100)
-        {
-            Minusebutton.interactable = false;
-        }
-    }
-    public void ChangeInput()
-    {
-        if (Single.Parse(InvestedMoney.GetComponent<InputField>().text) < 100)
-        {
-            InvestedMoney.GetComponent<InputField>().text = "100";
-            Minusebutton.interactable = false;
-        }
-        if (Single.Parse(InvestedMoney.GetComponent<InputField>().text) >= Single.Parse(Balance.GetComponent<Text>().text))
-        {
-            InvestedMoney.GetComponent<InputField>().text = (Single.Parse(Balance.GetComponent<Text>().text)).ToString();
-            Plusbutton.interactable = false;
-            Minusebutton.interactable = true;
+            myBet = 10;
         }
         else
         {
-            Plusbutton.interactable = true;
+            myBet -= 100;
         }
-        if (Single.Parse(InvestedMoney.GetComponent<InputField>().text) > 100)
+        bet.text = myBet.ToString();
+    }
+
+    public void inputChange()
+    {
+        myBet = Single.Parse(bet.text);
+        if (myBet > myBal)
         {
-            Minusebutton.interactable = true;
+            myBet = myBal;
+        }else if (myBet < 10)
+        {
+            myBet = 10;
         }
+        bet.text = myBet.ToString();
     }
 
 
-    private IEnumerator CardDeploy(){
-        playeronePoint = apiform.Playone;
-        playeronePoint_1 = apiform.Playone_1;
-        for (int i = H_imagecount;i<apiform.humancount;i++){
-            CardChild = Instantiate(prefab,Vector2.zero,Quaternion.identity);
-            CardChild.transform.SetParent(GameObject.FindGameObjectWithTag("Human").transform);
-            CardChild.tag = "Card";
-            CardChild.name = "Cards_H_"+i;
-            CardChild.GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.humancards[i])];
-            CardChild.GetComponent<RectTransform>().anchorMax = new Vector2((i + 1) * 0.12f, 0.95f);
-            CardChild.GetComponent<RectTransform>().anchorMin = new Vector2(0.03f + i * 0.12f, 0.05f);
-            CardChild.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-            CardChild.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-            CardChild.localScale = new Vector2(1f, 1f);
-            yield return new WaitForSeconds(0.5f);
-        }
-        Player1.text = playeronePoint.ToString();
-
-        for (int i = S_imagecount;i<apiform.splitcount;i++){
-            CardChild = Instantiate(prefab,Vector2.zero,Quaternion.identity);
-            CardChild.transform.SetParent(GameObject.FindGameObjectWithTag("Human_two").transform);
-            CardChild.tag = "Card";
-            CardChild.name = "Cards_H_S"+i;
-            CardChild.GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.splitcards[i])];
-            CardChild.GetComponent<RectTransform>().anchorMax = new Vector2((i + 1) * 0.12f, 0.95f);
-            CardChild.GetComponent<RectTransform>().anchorMin = new Vector2(0.03f + i * 0.12f, 0.05f);
-            CardChild.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-            CardChild.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-            CardChild.localScale = new Vector2(1f, 1f);
-            yield return new WaitForSeconds(0.5f);
-        }
-        Player1_1.text = playeronePoint_1.ToString();
-        playertwoPoint = apiform.Playtwo;
-        for (int i =C_imagecount;i<apiform.computercount;i++){
-            if(i==0){
-                CardChild = Instantiate(prefabTwo, Vector2.zero, Quaternion.identity);
-                if(apiform.gameState !=0){
-                    CardChild.GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.computercards[i])];
-                    Player2.text = playertwoPoint.ToString();
-                }
-            }else{
-                CardChild = Instantiate(prefab, Vector2.zero, Quaternion.identity);
-                CardChild.GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.computercards[i])];
-            }
-            CardChild.transform.SetParent(GameObject.FindGameObjectWithTag("Computer").transform);
-            CardChild.name = "Cards_C-"+i;
-            CardChild.tag = "Card";
-            CardChild.GetComponent<RectTransform>().anchorMax = new Vector2((i + 1) * 0.12f, 0.95f);
-            CardChild.GetComponent<RectTransform>().anchorMin = new Vector2(0.03f + i * 0.12f, 0.05f);
-            CardChild.GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-            CardChild.GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-            CardChild.localScale = new Vector2(1f, 1f);
-            yield return new WaitForSeconds(0.5f);
-        }
-
-        winState();
-        if (apiform.SplitBool)
+    public void GameStart(){
+        if (myBal >= myBet && myBal>=10)
         {
-            if(normalBool && splitBool)
-            {
-                GameObject.Find("Cards_C-0").GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.computercards[0])];
-                Player2.text = playertwoPoint.ToString();
-                setButton();
-            }
-            else
-            {
-                Hitbutton.interactable = true;
-                Standbutton.interactable = true;
-            }
+            insuranceBool = false;
+            S_State.text = "";
+            p_State.text = "";
+            D_State.text = "";
+            cardDestroy();
+            dealerCount = 0;
+            playerCount = 0;
+            splitCount = 0;
+            p_moneyCheck = true;
+            s_moneyCheck = true;
+            StartCoroutine(Deal());
+        }
+    }
+
+    public void Hit()
+    {
+        StartCoroutine(connectServer("Hit"));
+    }
+
+    public void Stand()
+    {
+        StartCoroutine(connectServer("Stand"));
+
+    }
+
+    public void Split()
+    {
+        StartCoroutine(c_Split());
+    }
+
+    public void Double()
+    {
+        if (insuranceBool)
+        {
+            myBet = myBet * 2;
+        }
+        if (myBal >= myBet)
+        {
+            StartCoroutine(myBalance());
+            StartCoroutine(connectServer("Double"));
+        }
+    }
+
+    public void Insurance()
+    {
+        insuranceBool = true;
+        myBet = myBet / 2;
+        StartCoroutine(myBalance());
+        StartCoroutine(InsuranceServer());
+    }
+
+    private IEnumerator Deal()
+    {
+        myBet = Single.Parse(bet.text);
+        DealButton.interactable = false;
+        WWWForm form = new WWWForm();
+        form.AddField("token", Token);
+        form.AddField("betValue", myBet.ToString());
+        _global = new Globalinitial();
+        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/start-Blackjack", form);
+        yield return www.SendWebRequest();
+        if(www.result != UnityWebRequest.Result.Success)
+        {
+            Error.GetComponent<Image>().sprite = a_response;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
+            DealButton.interactable = true;
         }
         else
         {
-            if (normalBool)
-            {
-                Player2.text = playertwoPoint.ToString();
-                GameObject.Find("Cards_C-0").GetComponent<Image>().sprite = CardTexture[Array.IndexOf(MyCardsName, apiform.computercards[0])];
-                setButton();
-            }
-            else
-            {
-                Debug.Log(1);
-                Hitbutton.interactable = true;
-                Standbutton.interactable = true;
-            }
+            StartCoroutine(myBalance());
+            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
+            apiform = JsonUtility.FromJson<APIForm>(strData);
+            StartCoroutine(MessageCheck());
         }
-        H_imagecount = apiform.humancount;
-        S_imagecount = apiform.splitcount;
-        C_imagecount = apiform.computercount;
-    } 
-//     // you can request to server here
-    private IEnumerator newStart()
+    }
+
+    private IEnumerator InsuranceServer()
     {
         WWWForm form = new WWWForm();
         form.AddField("token", Token);
-        form.AddField("betValue", InvestedMoney.GetComponent<InputField>().text);
         _global = new Globalinitial();
-        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/start-BlackJack", form);
+        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Insurance", form);
         yield return www.SendWebRequest();
         if (www.result != UnityWebRequest.Result.Success)
         {
-            Anim.GetComponent<Image>().sprite = a_Response;
-            Anim.SetActive(true);
-            yield return new WaitForSeconds(2.4f);
-            Anim.SetActive(false);
-            setButton();
+            Error.GetComponent<Image>().sprite = a_response;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
         }
         else
         {
             string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
             apiform = JsonUtility.FromJson<APIForm>(strData);
-            MessageCheck();
-            yield return new WaitForSeconds(2);
-            if(apiform.gameState==0){
-                buttonActive();
-                ButtonState();
+            buttonState();
+        }
+    }
+
+    private IEnumerator connectServer(string pass)
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("token", Token);
+        _global = new Globalinitial();
+        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/" + pass,form);
+        yield return www.SendWebRequest();
+        if(www.result != UnityWebRequest.Result.Success)
+        {
+            Error.GetComponent<Image>().sprite = a_response;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
+        }
+        else
+        {
+
+            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
+            apiform = JsonUtility.FromJson<APIForm>(strData);
+            if (apiform.insuranceMoney > 0)
+            {
+                StartCoroutine(winMoney(apiform.insuranceMoney));
+            }
+            StartCoroutine(PlayerCard());
+        }
+    }
+
+    private IEnumerator c_Split()
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("token", Token);
+        _global = new Globalinitial();
+        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Split", form);
+        yield return www.SendWebRequest();
+        if (www.result != UnityWebRequest.Result.Success)
+        {
+            Error.GetComponent<Image>().sprite = a_response;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
+        }
+        else
+        {
+            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
+            apiform = JsonUtility.FromJson<APIForm>(strData);
+            time = 0;
+            Transform splitTransform = GameObject.FindGameObjectsWithTag("Card")[1].transform;
+            playerCount = 1;
+            splitCount = 1;
+            e_vector = new Vector3(0.342f, 1.02f, -0.189f);
+            Vector3 s_rotation = new Vector3(0, -19, 0);
+            while (time < endTime)
+            {
+                GameObject.FindGameObjectsWithTag("Card")[1].transform.position = Vector3.Lerp(splitTransform.position, e_vector, time / endTime);
+                GameObject.FindGameObjectsWithTag("Card")[1].transform.rotation = Quaternion.Lerp(Quaternion.Euler(new Vector3(0,0,0)), Quaternion.Euler(s_rotation), time / endTime);
+                time += Time.deltaTime;
+                yield return null;
+            }
+            GameObject.FindGameObjectsWithTag("Card")[1].transform.position = e_vector;
+            buttonState();
+            p_State.text = apiform.playertotalWeight.ToString();
+            S_State.text = apiform.splittotalWeight.ToString();
+        }
+    }
+
+    private IEnumerator MessageCheck()
+    {
+        if(apiform.myMessage == 0)
+        {
+            StartCoroutine(PlayerCard());
+        }else if(apiform.myMessage == 1)
+        {
+            Error.GetComponent<Image>().sprite = a_server;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
+        }
+        else
+        {
+            Error.GetComponent<Image>().sprite = a_bet;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.495f);
+            Error.SetActive(false);
+            defaltButton();
+        }
+    }
+    private void defaltButton()
+    {
+        DealButton.interactable = true;
+        HitButton.interactable = false;
+        StandButton.interactable = false;
+        SplitButton.interactable = false;
+        DoubleButton.interactable = false;
+        InsuranceButton.SetActive(false);
+    }
+
+    private IEnumerator PlayerCard()
+    {
+        for(int i = playerCount; i < apiform.playerCount; i++)
+        {
+            Transform prefap = myprefab[apiform.playerCards[i]];
+            e_vector = new Vector3(i * 0.02f, 1.02f + i * 0.01f, -0.23f);
+            string cardName = "Cards_H_";
+            yield return Cardposition(i,e_vector,prefap,cardName);
+            
+        }
+        if(p_State.text!="Win"&& p_State.text != "Lose" && p_State.text != "Tie")
+            p_State.text = apiform.playertotalWeight.ToString();
+        for (int i = splitCount; i < apiform.splitCount; i++)
+        {
+            Transform prefap = myprefab[apiform.splitCards[i]];
+            e_vector = new Vector3(0.342f+i * 0.02f, 1.02f + i * 0.01f, -0.189f+0.011f);
+            string cardName = "Cards_S_";
+            yield return splitCard(i, e_vector, prefap, cardName);
+        }
+        if(apiform.splittotalWeight != 0)
+        {
+            if (S_State.text != "Win" && S_State.text != "Lose" && S_State.text != "Tie")
+                S_State.text = apiform.splittotalWeight.ToString();
+        }
+        for (int i = dealerCount; i < apiform.dealerCount; i++)
+        {
+            Transform prefap = myprefab[apiform.dealerCards[i]];
+            e_vector = new Vector3(i * 0.02f, 1.02f + i * 0.01f, 0.15f);
+            string cardName = "Cards_D_";
+            yield return Cardposition(i, e_vector, prefap, cardName);
+        }
+        D_State.text = apiform.dealertotalWeight.ToString();
+
+        playerCount = apiform.playerCount;
+        splitCount = apiform.splitCount;
+        dealerCount = apiform.dealerCount;
+        buttonState();
+        gameState();
+    }
+
+    private IEnumerator splitCard(int num,Vector3 target,Transform prefap,string name)
+    {
+        time = 0;
+        Card = Instantiate(prefap, f_vector, Quaternion.identity);
+        Card.tag = "Card";
+        Card.name = name + num;
+        Card.localScale = new Vector3(0.017f, 0.1f, 0.017f);
+        Card.transform.rotation = Quaternion.Euler(f_rotation);
+        Vector3 s_rotation = new Vector3(0, -19, 0);
+        while (time < endTime)
+        {
+            Card.transform.position = Vector3.Lerp(f_vector, target, time / endTime);
+            Card.transform.rotation = Quaternion.Lerp(Quaternion.Euler(f_rotation), Quaternion.Euler(s_rotation), time / endTime);
+            time += Time.deltaTime;
+            yield return null;
+        }
+        Card.transform.position = target;
+        Card.transform.rotation = Quaternion.Euler(s_rotation);
+    }
+
+    private IEnumerator Cardposition(int num,Vector3 target,Transform prefap,string name)
+    {
+        time = 0;
+        Card = Instantiate(prefap, f_vector, Quaternion.identity);
+        Card.tag = "Card";
+        Card.name = name + num;
+        Card.localScale = new Vector3(0.017f, 0.1f, 0.017f);
+        Card.transform.rotation = Quaternion.Euler(f_rotation);
+        while (time < endTime)
+        {
+            Card.transform.position = Vector3.Lerp(f_vector, target, time / endTime);
+            Card.transform.rotation = Quaternion.Lerp(Quaternion.Euler(f_rotation), Quaternion.Euler(e_rotation), time / endTime);
+            time += Time.deltaTime;
+            yield return null;
+        }
+        Card.transform.position = target;
+        Card.transform.rotation = Quaternion.Euler(0, 0, 0);
+    }
+
+    private void cardDestroy()
+    {
+        for(int i = 0; i < GameObject.FindGameObjectsWithTag("Card").Count(); i++)
+        {
+            Destroy(GameObject.FindGameObjectsWithTag("Card")[i]);
+        }
+    }
+
+    private void buttonState()
+    {
+        DealButton.interactable = apiform.dealButton;
+        HitButton.interactable = apiform.hitButton;
+        StandButton.interactable = apiform.standButton;
+        SplitButton.interactable = apiform.splitButton;
+        DoubleButton.interactable = apiform.doubleButton;
+        InsuranceButton.SetActive(apiform.insuranceButton);
+    }
+
+    private void gameState()
+    {
+        if (apiform.winState == 1)
+        {
+            p_State.text = "Lose";
+        }
+        else if (apiform.winState == 2)
+        {
+            p_State.text = "Tie";
+        }
+        else if (apiform.winState == 3)
+        {
+            p_State.text = "Win";
+        }
+        if (apiform.s_winState == 1)
+        {
+            S_State.text = "Lose";
+        }
+        else if (apiform.s_winState == 2)
+        {
+            S_State.text = "Tie";
+        }
+        else if (apiform.s_winState == 3)
+        {
+            S_State.text = "Win";
+        }
+        if (apiform.splitCount > 0)
+        {
+            if (apiform.winState > 1 || apiform.s_winState >1)
+            {
+                if (p_moneyCheck)
+                {
+                    StartCoroutine(winMoney(apiform.winMoney+ apiform.insuranceMoney));
+                    p_moneyCheck = false;
+                }
+            }
+        }
+        else
+        {
+            if (apiform.winState > 1)
+            {
+                if (p_moneyCheck)
+                {
+                    StartCoroutine(winMoney(apiform.winMoney+ apiform.insuranceMoney));
+                    p_moneyCheck = false;
+                }
             }
         }
     }
 
-    private IEnumerator Hit(){
-        defalt();
-        WWWForm form = new WWWForm();
-        form.AddField("token", Token);
-        _global = new Globalinitial();
-        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Hit", form);
-        yield return www.SendWebRequest();
-        if(www.result == UnityWebRequest.Result.Success)
-        {
-            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
-            apiform = JsonUtility.FromJson<APIForm>(strData);
-            StartCoroutine(CardDeploy());
-        }
-        else
-        {
-            Anim.GetComponent<Image>().sprite = a_Response;
-            Anim.SetActive(true);
-            yield return new WaitForSeconds(2.4f);
-            Anim.SetActive(false);
-            buttonActive();
-        }
-    }
-    private IEnumerator Stand()
+    private IEnumerator winMoney(float mywinMoney)
     {
-        defalt();
-        WWWForm form = new WWWForm();
-        form.AddField("token", Token);
-        _global = new Globalinitial();
-        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Stand", form);
-        yield return www.SendWebRequest();
-        if(www.result == UnityWebRequest.Result.Success)
+        float start = 0;
+        float end = 1f;
+        while (start < end)
         {
-            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
-            apiform = JsonUtility.FromJson<APIForm>(strData);
-            StartCoroutine(CardDeploy());
+            balance.text = Mathf.Floor(Mathf.Lerp(myBal, myBal + mywinMoney, (start / end))).ToString();
+            yield return new WaitForEndOfFrame();
+            start += Time.deltaTime;
         }
-        else
-        {
-            Anim.GetComponent<Image>().sprite = a_Response;
-            Anim.SetActive(true);
-            yield return new WaitForSeconds(2.4f);
-            Anim.SetActive(false);
-            buttonActive();
-        }
+        myBal += mywinMoney;
+        balance.text = myBal.ToString();
     }
-    private IEnumerator Split(){
-        defalt();
-        if (apiform.SplitBool){
-            Hitbutton.interactable = true;
-            Standbutton.interactable = true;
-            WWWForm form = new WWWForm();
-            form.AddField("token", Token);
-            _global = new Globalinitial();
-            UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Split", form);
-            yield return www.SendWebRequest();
-            if(www.result == UnityWebRequest.Result.Success){
-                GameObject.Find("Cards_H_1").transform.SetParent(GameObject.FindGameObjectWithTag("Human_two").transform);
-                GameObject.Find("Cards_H_1").GetComponent<RectTransform>().anchorMax = new Vector2(0.12f, 0.95f);
-                GameObject.Find("Cards_H_1").GetComponent<RectTransform>().anchorMin = new Vector2(0.03f, 0.05f);
-                GameObject.Find("Cards_H_1").GetComponent<RectTransform>().offsetMax = new Vector2(0, 0);
-                GameObject.Find("Cards_H_1").GetComponent<RectTransform>().offsetMin = new Vector2(0, 0);
-                H_imagecount = 1;
-                S_imagecount = 1;
-                playeronePoint_1 = apiform.Playone/2;
-                Player1_1.text = playeronePoint_1.ToString();
-                playeronePoint = apiform.Playone/2;
-                Player1.text = playeronePoint.ToString();
-                Debug.Log(myBet);
-                myBet = myBet / 2;
-                Debug.Log(myBet);
-            }else{
-                Anim.GetComponent<Image>().sprite = a_Response;
-                Anim.SetActive(true);
-                yield return new WaitForSeconds(2.4f);
-                Anim.SetActive(false);
-                buttonActive();
-            }
-        }
-    }
-    private IEnumerator Double()
+
+    private IEnumerator myBalance()
     {
-        defalt();
-        Hitbutton.interactable = false;
-        Standbutton.interactable = false;
-        WWWForm form = new WWWForm();
-        form.AddField("token", Token);
-        _global = new Globalinitial();
-        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Double", form);
-        yield return www.SendWebRequest();
-        if(www.result == UnityWebRequest.Result.Success)
+        float start = 0;
+        float end = 1;
+        while (start < end)
         {
-            string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
-            apiform = JsonUtility.FromJson<APIForm>(strData);
-            Doublebutton.interactable = false;
-            StartCoroutine(UpdateCoinsAmount());
-            myBet = myBet * 2;
-            StartCoroutine(CardDeploy());
+            balance.text = Mathf.Floor(Mathf.Lerp(myBal, myBal-myBet, (start/ end))).ToString();
+            start += Time.deltaTime;
+            yield return new WaitForEndOfFrame();
         }
-        else
-        {
-            Anim.GetComponent<Image>().sprite = a_Response;
-            Anim.SetActive(true);
-            yield return new WaitForSeconds(2.4f);
-            Anim.SetActive(false);
-            buttonActive();
-        }
-    }
-
-    private void MessageCheck()
-    {
-        if (apiform.myMessage == 0){
-            normal.text = "";
-            split.text = "";
-            myBet = Single.Parse(InvestedMoney.text);
-            StartCoroutine(UpdateCoinsAmount());
-            StartCoroutine(CardDeploy());
-        }else if(apiform.myMessage == 1){
-            StartCoroutine(Alerts(a_Server));
-            setButton();
-        }else if(apiform.myMessage == 2){
-            StartCoroutine(Alerts(a_Bet));
-            setButton();
-        }
-    }
-    private void winState(){
-        if(apiform.gameState == 1){
-            normal.text = "Lose";
-            normalBool = true;
-        }
-        else if(apiform.gameState == 2){
-            myBet = -myBet;
-            StartCoroutine(UpdateCoinsAmount());
-            normal.text = "Tie";
-            normalBool = true;
-        }
-        else if(apiform.gameState == 3)
-        {
-            myBet = -2*myBet;
-            StartCoroutine(UpdateCoinsAmount());
-            normal.text = "Win";
-            normalBool = true;
-        }
-        if (apiform.s_gameState == 1)
-        {
-            split.text = "Lose";
-            splitBool = true;
-        }
-        else if (apiform.s_gameState == 2)
-        {
-            myBet = -myBet;
-            StartCoroutine(UpdateCoinsAmount());
-            split.text = "Tie";
-            splitBool = true;
-
-        }
-        else if (apiform.s_gameState == 3)
-        {
-            myBet = -2*myBet;
-            StartCoroutine(UpdateCoinsAmount());
-            split.text = "Win";
-            splitBool = true;
-        }
-    }
-
-    private void setButton()
-    {
-        Plusbutton.interactable = true;
-        Minusebutton.interactable = true;
-        Hitbutton.interactable = false;
-        Standbutton.interactable = false;
-        Splitbutton.interactable = false;
-        Doublebutton.interactable = false;
-        Startbutton.interactable = true;
-    }
-
-private void buttonActive(){
-    Hitbutton.interactable = true;
-    Standbutton.interactable = true;
-}
-
-    private void ButtonState(){
-        if (apiform.SplitBool)
-        {
-            Splitbutton.interactable = true;
-        }
-        Doublebutton.interactable = true;
-    }
-
-    private IEnumerator Alerts(Sprite n_sprite){
-        Anim.GetComponent<Image>().sprite = n_sprite;
-        Anim.SetActive(true);
-        yield return new WaitForSeconds(2.4f);
-        Anim.SetActive(false);
-    }
-
-    private void CardDestroy()
-    {
-        for (int i = 0; i < GameObject.FindGameObjectsWithTag("Card").Count(); i++)
-        {
-            Destroy(GameObject.FindGameObjectsWithTag("Card")[i], 0f);
-        }
+        myBal -= myBet;
+        balance.text = (myBal).ToString();
     }
 
     public void RequestToken(string data)
     {
         JSONNode usersInfo = JSON.Parse(data);
         Token = usersInfo["token"];
-        Balance.GetComponent<Text>().text = (usersInfo["amount"]).ToString();
+        balance.GetComponent<Text>().text = (usersInfo["amount"]).ToString();
         myBal = usersInfo["amount"];
     }
-
-    //     //This is balance effect
-    private IEnumerator UpdateCoinsAmount()
-    {
-        const float seconds = 1.5f;
-        float elapsedTime = 0;
-        float newBal = myBal;
-        myBal -= myBet;
-        while (elapsedTime < seconds)
-        {
-            Balance.GetComponent<Text>().text = Mathf.Floor(Mathf.Lerp(newBal, newBal - myBet, (elapsedTime / seconds))).ToString();
-            elapsedTime += Time.deltaTime;
-
-            yield return new WaitForEndOfFrame();
-        }
-        Balance.GetComponent<Text>().text = (myBal).ToString();
-    }
 }
-
-
-
-
