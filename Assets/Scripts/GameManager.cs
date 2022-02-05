@@ -26,12 +26,15 @@ public class GameManager : MonoBehaviour
     public Text D_State;
     public static APIForm apiform;
     public static Globalinitial _global;
-    public Button DealButton;
-    public Button HitButton;
-    public Button StandButton;
-    public Button SplitButton;
+    public GameObject DealButton;
+    public GameObject HitButton;
+    public GameObject StandButton;
+    public GameObject SplitButton;
     public GameObject InsuranceButton;
-    public Button DoubleButton;
+    public GameObject DoubleButton;
+    public GameObject ForfeitButton;
+    public GameObject one;
+    public GameObject two;
 
     public Sprite a_response;
     public Sprite a_server;
@@ -45,8 +48,8 @@ public class GameManager : MonoBehaviour
     private Vector3 e_rotation = new Vector3(0,0,0);
 
     private bool insuranceBool = false;
-    private bool p_moneyCheck = true;
-    private bool s_moneyCheck = true;
+    private bool p_moneyCheck;
+    private bool splitBool = false;
     private string Token = "";
     private int dealerCount =0;
     private int playerCount =0;
@@ -61,6 +64,7 @@ public class GameManager : MonoBehaviour
 #if UNITY_WEBGL == true && UNITY_EDITOR == false
         GameController("Ready");
 #endif
+    defaltButton();
     }
 
     void Update()
@@ -113,13 +117,13 @@ public class GameManager : MonoBehaviour
             insuranceBool = false;
             S_State.text = "";
             p_State.text = "";
-            D_State.text = "";
+            D_State.text = "";  
             cardDestroy();
             dealerCount = 0;
             playerCount = 0;
             splitCount = 0;
             p_moneyCheck = true;
-            s_moneyCheck = true;
+            splitBool = false;
             StartCoroutine(Deal());
         }
     }
@@ -131,12 +135,15 @@ public class GameManager : MonoBehaviour
 
     public void Stand()
     {
+        ForfeitButton.SetActive(false);
         StartCoroutine(connectServer("Stand"));
 
     }
 
     public void Split()
     {
+        splitBool = true;
+        myBet = myBet / 2;
         StartCoroutine(c_Split());
     }
 
@@ -148,6 +155,7 @@ public class GameManager : MonoBehaviour
         }
         if (myBal >= myBet)
         {
+        ForfeitButton.SetActive(false);
             StartCoroutine(myBalance());
             StartCoroutine(connectServer("Double"));
         }
@@ -160,11 +168,15 @@ public class GameManager : MonoBehaviour
         StartCoroutine(myBalance());
         StartCoroutine(InsuranceServer());
     }
+    public void Forfiet(){
+        ForfeitButton.SetActive(false);
+        StartCoroutine(c_Forfiet());
+    }
 
     private IEnumerator Deal()
     {
         myBet = Single.Parse(bet.text);
-        DealButton.interactable = false;
+        DealButton.SetActive(false);
         WWWForm form = new WWWForm();
         form.AddField("token", Token);
         form.AddField("betValue", myBet.ToString());
@@ -175,17 +187,60 @@ public class GameManager : MonoBehaviour
         {
             Error.GetComponent<Image>().sprite = a_response;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
-            defaltButton();
-            DealButton.interactable = true;
+            DealButton.SetActive(true);
         }
         else
         {
-            StartCoroutine(myBalance());
             string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
             apiform = JsonUtility.FromJson<APIForm>(strData);
+            StartCoroutine(myBalance());
             StartCoroutine(MessageCheck());
+        }
+    }
+
+    private IEnumerator c_Forfiet(){
+        WWWForm form = new WWWForm();
+        form.AddField("token",Token);
+         _global = new Globalinitial();
+        UnityWebRequest www = UnityWebRequest.Post(_global.BaseUrl + "api/Forfiet", form);
+        yield return www.SendWebRequest();
+        if(www.result != UnityWebRequest.Result.Success)
+        {
+            Error.GetComponent<Image>().sprite = a_response;
+            Error.SetActive(true);
+            yield return new WaitForSeconds(2.49f);
+            Error.SetActive(false);
+            defaltButton();
+            DealButton.SetActive(true);
+        }
+        else
+        {
+            if(splitBool){
+                string strData = System.Text.Encoding.UTF8.GetString(www.downloadHandler.data);
+                apiform = JsonUtility.FromJson<APIForm>(strData);
+                if(apiform.playerForfeit){
+                    playerCard();
+                    p_State.text = "";
+                }else if(apiform.splitForfeit){
+                    splitCard();
+                    S_State.text = "";
+                }
+                if(apiform.playerForfeit && apiform.splitForfeit){
+                    dealerCard();
+                    D_State.text = "";
+                }
+            }else{
+                cardDestroy();
+                p_State.text = "";
+                D_State.text = "";
+                if(!insuranceBool){
+                    myBet = myBet/2;
+                }
+                StartCoroutine(winMoney(myBet));
+                defaltButton();
+            }
         }
     }
 
@@ -200,7 +255,7 @@ public class GameManager : MonoBehaviour
         {
             Error.GetComponent<Image>().sprite = a_response;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
             defaltButton();
         }
@@ -211,9 +266,18 @@ public class GameManager : MonoBehaviour
             buttonState();
         }
     }
+    private void buttons(){
+        DealButton.SetActive(false);
+        HitButton.SetActive(false);
+        StandButton.SetActive(false);
+        SplitButton.SetActive(false);
+        DoubleButton.SetActive(false);
+        InsuranceButton.SetActive(false);
+    }
 
     private IEnumerator connectServer(string pass)
     {
+        buttons();
         WWWForm form = new WWWForm();
         form.AddField("token", Token);
         _global = new Globalinitial();
@@ -223,7 +287,7 @@ public class GameManager : MonoBehaviour
         {
             Error.GetComponent<Image>().sprite = a_response;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
             defaltButton();
         }
@@ -236,12 +300,13 @@ public class GameManager : MonoBehaviour
             {
                 StartCoroutine(winMoney(apiform.insuranceMoney));
             }
-            StartCoroutine(PlayerCard());
+            StartCoroutine(gameCards());
         }
     }
 
     private IEnumerator c_Split()
     {
+        buttons();
         WWWForm form = new WWWForm();
         form.AddField("token", Token);
         _global = new Globalinitial();
@@ -251,7 +316,7 @@ public class GameManager : MonoBehaviour
         {
             Error.GetComponent<Image>().sprite = a_response;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
             defaltButton();
         }
@@ -283,12 +348,12 @@ public class GameManager : MonoBehaviour
     {
         if(apiform.myMessage == 0)
         {
-            StartCoroutine(PlayerCard());
+            StartCoroutine(gameCards());
         }else if(apiform.myMessage == 1)
         {
             Error.GetComponent<Image>().sprite = a_server;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
             defaltButton();
         }
@@ -296,28 +361,29 @@ public class GameManager : MonoBehaviour
         {
             Error.GetComponent<Image>().sprite = a_bet;
             Error.SetActive(true);
-            yield return new WaitForSeconds(2.495f);
+            yield return new WaitForSeconds(2.49f);
             Error.SetActive(false);
             defaltButton();
         }
     }
     private void defaltButton()
     {
-        DealButton.interactable = true;
-        HitButton.interactable = false;
-        StandButton.interactable = false;
-        SplitButton.interactable = false;
-        DoubleButton.interactable = false;
+        DealButton.SetActive(true);
+        HitButton.SetActive(false);
+        StandButton.SetActive(false);
+        SplitButton.SetActive(false);
+        DoubleButton.SetActive(false);
         InsuranceButton.SetActive(false);
+        ForfeitButton.SetActive(false);
     }
 
-    private IEnumerator PlayerCard()
+    private IEnumerator gameCards()
     {
         for(int i = playerCount; i < apiform.playerCount; i++)
         {
             Transform prefap = myprefab[apiform.playerCards[i]];
             e_vector = new Vector3(i * 0.02f, 1.02f + i * 0.01f, -0.23f);
-            string cardName = "Cards_H_";
+            string cardName = "Cards_H";
             yield return Cardposition(i,e_vector,prefap,cardName);
             
         }
@@ -327,7 +393,7 @@ public class GameManager : MonoBehaviour
         {
             Transform prefap = myprefab[apiform.splitCards[i]];
             e_vector = new Vector3(0.342f+i * 0.02f, 1.02f + i * 0.01f, -0.189f+0.011f);
-            string cardName = "Cards_S_";
+            string cardName = "Cards_S";
             yield return splitCard(i, e_vector, prefap, cardName);
         }
         if(apiform.splittotalWeight != 0)
@@ -339,7 +405,7 @@ public class GameManager : MonoBehaviour
         {
             Transform prefap = myprefab[apiform.dealerCards[i]];
             e_vector = new Vector3(i * 0.02f, 1.02f + i * 0.01f, 0.15f);
-            string cardName = "Cards_D_";
+            string cardName = "Cards_D";
             yield return Cardposition(i, e_vector, prefap, cardName);
         }
         D_State.text = apiform.dealertotalWeight.ToString();
@@ -397,42 +463,61 @@ public class GameManager : MonoBehaviour
             Destroy(GameObject.FindGameObjectsWithTag("Card")[i]);
         }
     }
+    private void playerCard()
+    {
+        Destroy(GameObject.Find("Cards_H"));
+    }
+    private void splitCard()
+    {
+        Destroy(GameObject.Find("Cards_S"));
+    }
+    private void dealerCard()
+    {
+        Destroy(GameObject.Find("Cards_D"));
+    }
 
     private void buttonState()
     {
-        DealButton.interactable = apiform.dealButton;
-        HitButton.interactable = apiform.hitButton;
-        StandButton.interactable = apiform.standButton;
-        SplitButton.interactable = apiform.splitButton;
-        DoubleButton.interactable = apiform.doubleButton;
+        DealButton.SetActive(apiform.dealButton);
+        HitButton.SetActive(apiform.hitButton);
+        StandButton.SetActive(apiform.standButton);
+        SplitButton.SetActive(apiform.splitButton);
+        DoubleButton.SetActive(apiform.doubleButton);
         InsuranceButton.SetActive(apiform.insuranceButton);
+        ForfeitButton.SetActive(apiform.forfeitButton);
+        one.SetActive(apiform.oneImage);
+        two.SetActive(apiform.twoImage);
     }
 
     private void gameState()
     {
-        if (apiform.winState == 1)
-        {
-            p_State.text = "Lose";
+        if(!apiform.playerForfeit){
+            if (apiform.winState == 1)
+            {
+                p_State.text = "Lose";
+            }
+            else if (apiform.winState == 2)
+            {
+                p_State.text = "Tie";
+            }
+            else if (apiform.winState == 3)
+            {
+                p_State.text = "Win";
+            }
         }
-        else if (apiform.winState == 2)
-        {
-            p_State.text = "Tie";
-        }
-        else if (apiform.winState == 3)
-        {
-            p_State.text = "Win";
-        }
-        if (apiform.s_winState == 1)
-        {
-            S_State.text = "Lose";
-        }
-        else if (apiform.s_winState == 2)
-        {
-            S_State.text = "Tie";
-        }
-        else if (apiform.s_winState == 3)
-        {
-            S_State.text = "Win";
+        if(!apiform.splitForfeit){
+            if (apiform.s_winState == 1)
+            {
+                S_State.text = "Lose";
+            }
+            else if (apiform.s_winState == 2)
+            {
+                S_State.text = "Tie";
+            }
+            else if (apiform.s_winState == 3)
+            {
+                S_State.text = "Win";
+            }
         }
         if (apiform.splitCount > 0)
         {
@@ -490,7 +575,7 @@ public class GameManager : MonoBehaviour
     {
         JSONNode usersInfo = JSON.Parse(data);
         Token = usersInfo["token"];
-        balance.GetComponent<Text>().text = (usersInfo["amount"]).ToString();
+        balance.GetComponent<Text>().text = usersInfo["amount"];
         myBal = usersInfo["amount"];
     }
 }
